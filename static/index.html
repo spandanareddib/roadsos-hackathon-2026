@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoadSoS - BIMSTEC Emergency Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans h-screen overflow-hidden">
+
+    <div class="flex h-full">
+        <!-- LEFT: Mobile WhatsApp Simulator (30%) -->
+        <div class="w-1/3 border-r border-gray-700 p-6 flex flex-col bg-gray-800">
+            <h2 class="text-xl font-bold mb-4 text-green-400"><i class="fab fa-whatsapp"></i> User Simulator</h2>
+            
+            <div id="chat-box" class="flex-1 bg-gray-900 rounded-lg p-4 overflow-y-auto mb-4 space-y-3">
+                <div class="bg-gray-700 p-2 rounded-lg text-sm max-w-[80%]">
+                    Welcome to RoadSoS. How can I help?
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <textarea id="user-msg" class="w-full bg-gray-700 border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-green-500" placeholder="Type emergency message..."></textarea>
+                <div class="flex gap-2">
+                    <input id="user-lat" type="number" step="any" value="13.752" class="w-1/2 bg-gray-700 p-2 rounded-lg text-xs" placeholder="Lat">
+                    <input id="user-lng" type="number" step="any" value="100.539" class="w-1/2 bg-gray-700 p-2 rounded-lg text-xs" placeholder="Lng">
+                </div>
+                <button onclick="sendSOS()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg transition">SEND SOS</button>
+            </div>
+        </div>
+
+        <!-- RIGHT: Dispatcher Dashboard (70%) -->
+        <div class="w-2/3 p-8">
+            <header class="flex justify-between items-center mb-8">
+                <div>
+                    <h1 class="text-3xl font-bold">RoadSoS <span class="text-blue-500">Dispatcher</span></h1>
+                    <p class="text-gray-400">BIMSTEC Region / Active Incidents</p>
+                </div>
+                <div class="flex gap-4">
+                    <div class="bg-gray-800 p-3 rounded-lg border border-gray-700">
+                        <span class="text-xs block text-gray-500 uppercase">System Status</span>
+                        <span class="text-green-400 font-mono">● LIVE_CONNECTED</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="grid grid-cols-2 gap-6">
+                <!-- Live Incident Card -->
+                <div id="incident-card" class="bg-gray-800 rounded-xl p-6 border border-gray-700 hidden">
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="text-lg font-bold">Active Report</h3>
+                        <span id="severity-badge" class="px-3 py-1 rounded-full text-xs font-bold uppercase"></span>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <p class="text-gray-400"><i class="fa fa-comment"></i> "<span id="disp-msg" class="italic"></span>"</p>
+                        <hr class="border-gray-700">
+                        <p class="font-bold text-blue-400"><i class="fa fa-hospital"></i> ROUTED FACILITY:</p>
+                        <p id="disp-hospital" class="text-lg"></p>
+                        <p class="text-gray-400"><i class="fa fa-phone"></i> Hospital Line: <span id="disp-phone"></span></p>
+                    </div>
+                </div>
+
+                <!-- Stats / Map Placeholder -->
+                <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 flex items-center justify-center">
+                    <div class="text-center">
+                        <i class="fa fa-map-marked-alt text-4xl text-gray-600 mb-2"></i>
+                        <p class="text-gray-500 text-sm italic">Geospatial Intelligence Active</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function sendSOS() {
+            const msg = document.getElementById('user-msg').value;
+            const lat = document.getElementById('user-lat').value;
+            const lng = document.getElementById('user-lng').value;
+            const chatBox = document.getElementById('chat-box');
+
+            if(!msg) return;
+
+            // Update UI with user message
+            chatBox.innerHTML += `<div class="bg-green-700 p-2 rounded-lg text-sm max-w-[80%] self-end ml-auto">${msg}</div>`;
+            document.getElementById('user-msg').value = '';
+
+            try {
+                const response = await fetch('/sos', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ message: msg, lat: parseFloat(lat), lng: parseFloat(lng) })
+                });
+                const result = await response.json();
+
+                // Update Bot Response in Simulator
+                chatBox.innerHTML += `<div class="bg-gray-700 p-2 rounded-lg text-sm max-w-[80%]">${result.bot_response}</div>`;
+                chatBox.scrollTop = chatBox.scrollHeight;
+
+                // Update Dispatcher Dashboard
+                document.getElementById('incident-card').classList.remove('hidden');
+                document.getElementById('disp-msg').innerText = msg;
+                document.getElementById('disp-hospital').innerText = result.bot_response.split('Trauma: ')[1].split(' (')[0];
+                document.getElementById('disp-phone').innerText = result.bot_response.split('Call: ')[1];
+                
+                const badge = document.getElementById('severity-badge');
+                badge.innerText = `Severity ${result.severity}`;
+                badge.className = `px-3 py-1 rounded-full text-xs font-bold uppercase ${result.severity >= 4 ? 'bg-red-900 text-red-200' : 'bg-yellow-900 text-yellow-200'}`;
+
+            } catch (error) {
+                console.error("Error calling API:", error);
+            }
+        }
+    </script>
+</body>
+</html>
