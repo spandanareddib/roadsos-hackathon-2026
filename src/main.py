@@ -29,6 +29,11 @@ db = GeoDatabase()
 def home():
     return FileResponse("static/index.html")
 
+# Health check for uptime monitoring (keeps the free Render instance awake)
+@app.api_route("/health", methods=["GET", "HEAD"])
+def health():
+    return {"status": "ok"}
+
 # 5. The Core SOS logic
 @app.post("/sos")
 def handle_sos(request: SOSRequest):
